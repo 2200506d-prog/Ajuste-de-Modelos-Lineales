@@ -1,0 +1,177 @@
+index.html
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ajuste Lineal Avanzado - Matrices</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <style>
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; margin: 20px; background-color: #f0f2f5; color: #333; }
+        .container { max-width: 900px; margin: auto; background: white; padding: 30px; border-radius: 12px; box-shadow: 0 4px 20px rgba(0,0,0,0.1); }
+        h1, h2 { color: #1a73e8; }
+        .selector-box { background: #e8f0fe; padding: 20px; border-radius: 8px; margin-bottom: 20px; text-align: center; }
+        .input-section { display: none; margin-top: 20px; padding: 15px; border: 1px solid #ddd; border-radius: 8px; }
+        button { background-color: #1a73e8; color: white; border: none; padding: 10px 20px; border-radius: 5px; cursor: pointer; margin: 5px; transition: 0.3s; }
+        button:hover { background-color: #1557b0; }
+        table { width: 100%; border-collapse: collapse; margin-top: 15px; }
+        th, td { border: 1px solid #ddd; padding: 8px; text-align: center; }
+        .result-box { background: #f8f9fa; border-left: 5px solid #1a73e8; padding: 15px; margin: 20px 0; font-family: monospace; }
+        .explanation { background: #fff3cd; padding: 15px; border-radius: 8px; line-height: 1.6; }
+        canvas { margin-top: 20px; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h1>Análisis de Regresión Lineal</h1>
+    
+    <div class="selector-box">
+        <p><strong>¿Cómo deseas ingresar los datos?</strong></p>
+        <button onclick="showSection('excel-section')">Subir Excel (.xlsx)</button>
+        <button onclick="showSection('manual-section')">Ingresar Manualmente</button>
+    </div>
+
+    <div id="excel-section" class="input-section">
+        <h3>Subir Archivo Excel</h3>
+        <p>Asegúrate de que la primera columna sea X y la segunda sea Y.</p>
+        <input type="file" id="upload-excel" accept=".xlsx, .xls">
+    </div>
+
+    <div id="manual-section" class="input-section">
+        <h3>Entrada Manual</h3>
+        <label>Número de elementos:</label>
+        <input type="number" id="num-elements" min="2" value="5">
+        <button onclick="generateTable()">Generar Tabla</button>
+        <div id="table-container"></div>
+        <button onclick="calculateManual()" style="margin-top:10px;">Calcular y Graficar</button>
+    </div>
+
+    <div id="output" style="display:none;">
+        <div class="result-box" id="equation-output"></div>
+        <canvas id="regressionChart"></canvas>
+        
+        <div class="explanation">
+            <h3>Explicación del Procedimiento Matricial</h3>
+            <p>Para encontrar la mejor recta $Y = mx + b$, utilizamos el método de <strong>Mínimos Cuadrados</strong> mediante álgebra lineal:</p>
+            <ol>
+                <li><strong>Matriz de Diseño (A):</strong> Construimos una matriz donde la primera columna son "1"s (para el intercepto $b$) y la segunda columna son los valores de $X$.</li>
+                <li><strong>Vector de Observaciones (y):</strong> Es un vector columna con los valores de $Y$.</li>
+                <li><strong>Ecuación Normal:</strong> Resolvemos el sistema $(A^T A) \hat{\beta} = A^T y$.</li>
+                <li><strong>Cálculo:</strong> Multiplicamos la transpuesta de $A$ por $A$, calculamos su inversa y la multiplicamos por el producto de $A^T$ y $y$. Los resultados son los coeficientes óptimos que minimizan la distancia al cuadrado de los puntos a la recta.</li>
+            </ol>
+        </div>
+    </div>
+</div>
+
+<script>
+    let chartInstance = null;
+
+    function showSection(id) {
+        document.querySelectorAll('.input-section').forEach(s => s.style.display = 'none');
+        document.getElementById(id).style.display = 'block';
+    }
+
+    // Lógica para Excel
+    document.getElementById('upload-excel').addEventListener('change', function(e) {
+        const reader = new FileReader();
+        reader.onload = function(e) {
+            const data = new Uint8Array(e.target.result);
+            const workbook = XLSX.read(data, {type: 'array'});
+            const sheet = workbook.Sheets[workbook.SheetNames[0]];
+            const json = XLSX.utils.sheet_to_json(sheet, {header: 1});
+            
+            let xArr = [], yArr = [];
+            json.forEach(row => {
+                if(!isNaN(row[0]) && !isNaN(row[1])) {
+                    xArr.push(parseFloat(row[0]));
+                    yArr.push(parseFloat(row[1]));
+                }
+            });
+            processData(xArr, yArr);
+        };
+        reader.readAsArrayBuffer(e.target.files[0]);
+    });
+
+    // Generar tabla manual
+    function generateTable() {
+        const n = document.getElementById('num-elements').value;
+        let html = '<table><tr><th>X</th><th>Y</th></tr>';
+        for(let i=0; i<n; i++) {
+            html += `<tr>
+                <td><input type="number" class="in-x" step="any"></td>
+                <td><input type="number" class="in-y" step="any"></td>
+            </tr>`;
+        }
+        html += '</table>';
+        document.getElementById('table-container').innerHTML = html;
+    }
+
+    function calculateManual() {
+        const xInputs = document.querySelectorAll('.in-x');
+        const yInputs = document.querySelectorAll('.in-y');
+        let xArr = [], yArr = [];
+        xInputs.forEach((el, i) => {
+            if(el.value !== "") {
+                xArr.push(parseFloat(el.value));
+                yArr.push(parseFloat(yInputs[i].value));
+            }
+        });
+        processData(xArr, yArr);
+    }
+
+    // Cálculos Matemáticos (Matrices simplificadas)
+    function processData(x, y) {
+        const n = x.length;
+        let sumX = 0, sumY = 0, sumXY = 0, sumXX = 0;
+        for(let i=0; i<n; i++) {
+            sumX += x[i]; sumY += y[i];
+            sumXY += x[i]*y[i]; sumXX += x[i]*x[i];
+        }
+
+        // Resolución de Cramer para el sistema de matrices 2x2
+        // [ n     sumX ] [ b ] = [ sumY ]
+        // [ sumX  sumXX] [ m ] = [ sumXY ]
+        const det = (n * sumXX) - (sumX * sumX);
+        const b = (sumY * sumXX - sumX * sumXY) / det;
+        const m = (n * sumXY - sumX * sumY) / det;
+
+        displayResults(x, y, m, b);
+    }
+
+    function displayResults(x, y, m, b) {
+        document.getElementById('output').style.display = 'block';
+        document.getElementById('equation-output').innerHTML = `
+            <strong>RESULTADOS DEL MODELO:</strong><br>
+            Ecuación: Y = ${m.toFixed(4)}x + ${b.toFixed(4)}<br>
+            Pendiente (m): ${m.toFixed(4)}<br>
+            Intercepto (b): ${b.toFixed(4)}
+        `;
+
+        if(chartInstance) chartInstance.destroy();
+
+        const ctx = document.getElementById('regressionChart').getContext('2d');
+        chartInstance = new Chart(ctx, {
+            type: 'scatter',
+            data: {
+                datasets: [{
+                    label: 'Datos',
+                    data: x.map((v, i) => ({x: v, y: y[i]})),
+                    backgroundColor: '#1a73e8'
+                }, {
+                    label: 'Ajuste Lineal',
+                    data: [
+                        {x: Math.min(...x), y: m*Math.min(...x)+b},
+                        {x: Math.max(...x), y: m*Math.max(...x)+b}
+                    ],
+                    type: 'line',
+                    borderColor: '#ea4335',
+                    fill: false
+                }]
+            }
+        });
+    }
+</script>
+</body>
+</html>
