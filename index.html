@@ -13,17 +13,26 @@
         .menu-selection { display: flex; justify-content: center; gap: 15px; margin-bottom: 30px; background: #ebf2f7; padding: 20px; border-radius: 10px; }
         button { padding: 12px 24px; border: none; border-radius: 8px; cursor: pointer; font-weight: bold; transition: 0.3s; }
         .btn-blue { background: #3498db; color: white; }
-        .btn-blue:hover { background: #2980b9; }
         .btn-green { background: #27ae60; color: white; }
-        .btn-green:hover { background: #219150; }
         .section { display: none; padding: 20px; border: 1px dashed #bdc3c7; border-radius: 10px; margin-top: 20px; }
         table { width: 100%; border-collapse: collapse; margin: 20px 0; }
         th, td { border: 1px solid #ddd; padding: 10px; text-align: center; }
-        .results { background: #2c3e50; color: #ecf0f1; padding: 20px; border-radius: 10px; margin-top: 30px; font-family: 'Courier New', monospace; line-height: 1.5; overflow-x: auto; }
-        .matrix-title { color: #f1c40f; font-weight: bold; margin-top: 15px; display: block; }
+        
+        /* Estilo para las matrices tipo consola */
+        .results { 
+            background: #1e1e1e; 
+            color: #d4d4d4; 
+            padding: 20px; 
+            border-radius: 10px; 
+            margin-top: 30px; 
+            font-family: 'Consolas', 'Courier New', monospace; 
+            white-space: pre-wrap;
+            line-height: 1.4;
+        }
+        .matrix-label { color: #569cd6; font-weight: bold; margin-top: 15px; display: block; }
+        
         .explanation { margin-top: 30px; background: #fffbe6; padding: 20px; border-left: 5px solid #f1c40f; border-radius: 5px; }
         #downloadBtn { margin-top: 15px; background: #e67e22; color: white; display: none; }
-        canvas { margin-top: 20px; }
     </style>
 </head>
 <body>
@@ -38,13 +47,11 @@
 
     <div id="excel-sec" class="section">
         <h3>Cargar Hoja de Cálculo</h3>
-        <p>Sube un archivo .xlsx donde la Columna A sea X y la Columna B sea Y.</p>
         <input type="file" id="fileUploader" accept=".xlsx, .xls">
     </div>
 
     <div id="manual-sec" class="section">
         <h3>Datos Manuales</h3>
-        <label>¿Cuántos datos vas a ingresar?</label>
         <input type="number" id="rowCount" min="2" value="5" style="padding: 5px; width: 60px;">
         <button class="btn-blue" onclick="buildTable()">Crear Tabla</button>
         <div id="tableWrapper"></div>
@@ -59,13 +66,11 @@
         <div class="explanation">
             <h3>📖 Explicación del Procedimiento</h3>
             <p>El ajuste se realiza mediante la <b>Ecuación Normal de Gauss</b>:</p>
-            <div style="text-align: center; font-size: 1.2em; margin: 10px 0;">
-                (A<sup>T</sup>A)x = A<sup>T</sup>y
-            </div>
+            <center><b>(Aᵀ A)x = Aᵀ y</b></center>
             <ol>
-                <li><b>Matriz A:</b> Contiene la columna de valores $X$ y una columna de unos.</li>
-                <li><b>Matriz de Covarianza (A<sup>T</sup>A):</b> Multiplicación de la transpuesta por la original.</li>
-                <li><b>Solución:</b> Se invierte (A<sup>T</sup>A) y se multiplica por el vector resultante A<sup>T</sup>y.</li>
+                <li><b>Matriz A:</b> Contiene la columna X y una columna de 1s.</li>
+                <li><b>Matriz AᵀA:</b> Es el producto de la transpuesta por A.</li>
+                <li><b>Solución:</b> Se obtiene invirtiendo AᵀA.</li>
             </ol>
         </div>
     </div>
@@ -83,7 +88,7 @@
         const n = document.getElementById('rowCount').value;
         let html = '<table><tr><th>X</th><th>Y</th></tr>';
         for(let i=0; i<n; i++) {
-            html += `<tr><td><input type="number" class="ix" step="any" value="${i+1}"></td><td><input type="number" class="iy" step="any" value="${(i+1)*2 + 1}"></td></tr>`;
+            html += `<tr><td><input type="number" class="ix" value="${i+1}"></td><td><input type="number" class="iy" value="${(i+1)*2 + Math.floor(Math.random()*3)}"></td></tr>`;
         }
         document.getElementById('tableWrapper').innerHTML = html + '</table>';
     }
@@ -91,99 +96,89 @@
     function calculateManual() {
         const xIn = document.querySelectorAll('.ix'), yIn = document.querySelectorAll('.iy');
         let x = [], y = [];
-        xIn.forEach((el, i) => { if(el.value !== "") { x.push(Number(el.value)); y.push(Number(yIn[i].value)); }});
-        if(x.length > 0) solveLinear(x, y);
+        xIn.forEach((el, i) => { if(el.value) { x.push(Number(el.value)); y.push(Number(yIn[i].value)); }});
+        solveLinear(x, y);
     }
 
-    // Lógica de Matrices Paso a Paso
+    // --- LÓGICA MATRICIAL PASO A PASO ---
     function solveLinear(x, y) {
         const n = x.length;
         
-        // 1. Construir Matriz A (n x 2) [x, 1]
-        let matrixA = x.map(val => [val, 1]);
-        
-        // 2. Transpuesta A^T (2 x n)
-        let matrixAT = [x, Array(n).fill(1)];
+        // 1. Matriz A (n x 2) [Columna X, Columna 1s]
+        const matrixA = x.map(val => [val, 1]);
 
-        // 3. Producto A^T * A (Matriz 2x2)
-        let sX = 0, sXX = 0, sY = 0, sXY = 0;
-        for(let i=0; i<n; i++) {
-            sX += x[i];
-            sXX += x[i] * x[i];
-            sY += y[i];
-            sXY += x[i] * y[i];
-        }
-        let AtA = [[sXX, sX], [sX, n]];
-        let Aty = [sXY, sY];
+        // 2. Matriz B (A Transpuesta) (2 x n)
+        const matrixB = [[...x], Array(n).fill(1)];
 
-        // 4. Determinante de (AtA)
-        const det = (AtA[0][0] * AtA[1][1]) - (AtA[0][1] * AtA[1][0]);
-
-        // 5. Inversa de (AtA)
-        let invAtA = [
-            [AtA[1][1] / det, -AtA[0][1] / det],
-            [-AtA[1][0] / det, AtA[0][0] / det]
+        // 3. Producto A * B (En realidad es B * A, o sea A^T * A) (2 x 2)
+        let sXX = 0, sX = 0;
+        x.forEach(val => { sXX += val * val; sX += val; });
+        const productAB = [
+            [sXX, sX],
+            [sX, n]
         ];
 
-        // 6. Calcular m y b (Solución x = inv(AtA) * Aty)
-        const m = invAtA[0][0] * Aty[0] + invAtA[0][1] * Aty[1];
-        const b = invAtA[1][0] * Aty[0] + invAtA[1][1] * Aty[1];
+        // 4. Determinante
+        const det = (productAB[0][0] * productAB[1][1]) - (productAB[0][1] * productAB[1][0]);
 
-        renderOutput(x, y, m, b, {matrixA, matrixAT, AtA, det, invAtA});
+        // 5. Inversa
+        const inv = [
+            [productAB[1][1] / det, -productAB[0][1] / det],
+            [-productAB[1][0] / det, productAB[0][0] / det]
+        ];
+
+        // 6. Resultado Final (m y b)
+        let sXY = 0, sY = 0;
+        x.forEach((val, i) => { sXY += val * y[i]; sY += y[i]; });
+        const m = inv[0][0] * sXY + inv[0][1] * sY;
+        const b = inv[1][0] * sXY + inv[1][1] * sY;
+
+        renderOutput(x, y, m, b, { matrixA, matrixB, productAB, det, inv });
     }
 
-    function formatMatrix(arr) {
-        return arr.map(row => "[" + row.map(n => n.toFixed(2).padStart(6)).join(" ") + "]").join("<br>");
+    // Función para dibujar matrices con corchetes
+    function formatMat(name, matrix) {
+        let str = `<span class="matrix-label">${name}:</span>\n`;
+        matrix.forEach(row => {
+            str += `[ ${row.map(n => n.toFixed(2).padStart(6)).join(" ")} ]\n`;
+        });
+        return str;
     }
 
     function renderOutput(x, y, m, b, steps) {
         document.getElementById('outputArea').style.display = 'block';
         document.getElementById('downloadBtn').style.display = 'inline-block';
         
-        let resDiv = document.getElementById('mathResults');
-        resDiv.innerHTML = `
-            <span class="matrix-title">Matriz A (X | 1):</span>
-            ${formatMatrix(steps.matrixA)}<br>
-            
-            <span class="matrix-title">Matriz A Transpuesta (Aᵀ):</span>
-            ${formatMatrix(steps.matrixAT)}<br>
-            
-            <span class="matrix-title">Producto (Aᵀ * A):</span>
-            ${formatMatrix(steps.AtA)}<br>
-            
-            <span class="matrix-title">Determinante de (Aᵀ * A):</span>
-            ${steps.det.toFixed(10)}<br>
-            
-            <span class="matrix-title">Inversa de (Aᵀ * A):</span>
-            ${formatMatrix(steps.invAtA)}<br>
-            
-            <hr style="border-color: #444; margin: 20px 0;">
-            <b>ECUACIÓN FINAL:</b> Y = ${m.toFixed(4)}x + (${b.toFixed(4)}) <br>
-            <b>Pendiente (m):</b> ${m.toFixed(4)} <br>
-            <b>Intercepto (b):</b> ${b.toFixed(4)}
-        `;
+        const mathResults = document.getElementById('mathResults');
+        mathResults.innerHTML = 
+            formatMat("Matriz A", steps.matrixA) + "\n" +
+            formatMat("Matriz B (A Transpuesta)", steps.matrixB) + "\n" +
+            formatMat("Producto de A * B (AᵀA)", steps.productAB) + "\n" +
+            `<span class="matrix-label">El determinante de (A*B) es:</span> ${steps.det.toFixed(14)}\n\n` +
+            formatMat("La inversa de (A*B) es", steps.inv) + "\n" +
+            `<hr style="border:0; border-top:1px solid #444;">` +
+            `<b style="color:#4ec9b0">ECUACIÓN: Y = ${m.toFixed(4)}x + (${b.toFixed(4)})</b>`;
 
+        // Gráfica
         if(myChart) myChart.destroy();
         const ctx = document.getElementById('chartCanvas').getContext('2d');
         myChart = new Chart(ctx, {
             type: 'scatter',
             data: {
                 datasets: [
-                    { label: 'Datos Reales', data: x.map((v, i) => ({x: v, y: y[i]})), backgroundColor: '#3498db' },
-                    { label: 'Línea de Ajuste', data: [{x: Math.min(...x), y: m*Math.min(...x)+b}, {x: Math.max(...x), y: m*Math.max(...x)+b}], type: 'line', borderColor: '#e74c3c', borderWidth: 2, fill: false, pointRadius: 0 }
+                    { label: 'Datos', data: x.map((v, i) => ({x: v, y: y[i]})), backgroundColor: '#3498db' },
+                    { label: 'Ajuste', data: [{x: Math.min(...x), y: m*Math.min(...x)+b}, {x: Math.max(...x), y: m*Math.max(...x)+b}], type: 'line', borderColor: '#e74c3c' }
                 ]
-            },
-            options: { scales: { x: {title: {display: true, text: 'Eje X'}}, y: {title: {display: true, text: 'Eje Y'}} } }
+            }
         });
     }
 
     function downloadImage() {
         const link = document.createElement('a');
-        link.download = 'ajuste_lineal.png';
+        link.download = 'grafica.png';
         link.href = document.getElementById('chartCanvas').toDataURL();
         link.click();
     }
 </script>
-
 </body>
 </html>
