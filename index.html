@@ -1,5 +1,4 @@
-
-   <!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="es">
 <head>
     <meta charset="UTF-8">
@@ -12,16 +11,17 @@
         .container { max-width: 900px; width: 100%; background: white; padding: 30px; margin: 20px; border-radius: 15px; box-shadow: 0 10px 25px rgba(0,0,0,0.1); }
         h1 { color: #2c3e50; text-align: center; border-bottom: 3px solid #3498db; padding-bottom: 10px; margin-bottom: 20px; }
         
-        /* ESTA ES LA INTRODUCCIÓN QUE SOLICITASTE */
+        /* LA INTRODUCCIÓN QUE SOLICITASTE */
         .intro-box { 
             background: #eef7ff; 
             border-left: 5px solid #3498db; 
             padding: 20px; 
-            margin-bottom: 30px; 
+            margin: 20px 0; 
             border-radius: 8px; 
             color: #34495e; 
             line-height: 1.6;
-            font-size: 1.05em;
+            font-size: 1.1em;
+            display: block !important; /* Asegura que siempre se vea */
         }
 
         .menu-selection { display: flex; justify-content: center; gap: 15px; margin-bottom: 30px; background: #ebf2f7; padding: 20px; border-radius: 10px; }
@@ -63,7 +63,7 @@
     <h1>Análisis de Regresión Lineal</h1>
 
     <div class="intro-box">
-        Analiza una tabla de datos de Excel o un conjunto de datos que ingreses, donde posteriormente realizará un ajuste de líneas rectas por medio de matrices y explicará este procedimiento que realiza para las personas que no comprenden del todo este código y sea de ayuda.
+        Analiza una tabla de datos de excel o un conjunto de datos que ingreses, donde posteriormente realizara un ajuste de líneas rectas, por medio de matrices y explicara este procedimiento que realiza para las personas que no comprenden del todo este código y sea de ayuda.
     </div>
 
     <div class="menu-selection">
@@ -72,8 +72,7 @@
     </div>
 
     <div id="excel-sec" class="section">
-        <h3>Cargar Excel</h3>
-        <p>Selecciona un archivo .xlsx donde la Columna A sea X y la Columna B sea Y.</p>
+        <h3>Cargar Hoja de Cálculo</h3>
         <input type="file" id="fileUploader" accept=".xlsx, .xls">
     </div>
 
@@ -87,18 +86,16 @@
 
     <div id="outputArea" style="display:none;">
         <div class="results" id="mathResults"></div>
-        
         <canvas id="chartCanvas" style="margin-top:20px;"></canvas>
         <button id="downloadBtn" onclick="downloadImage()">💾 Descargar Gráfica</button>
 
         <div class="explanation">
             <h3>📖 Explicación del Procedimiento</h3>
-            <p>El ajuste se realiza mediante la <b>Ecuación Normal de Gauss</b>:</p>
-            <center><b>(Aᵀ A)x = Aᵀ y</b></center>
+            <p>Se utiliza la <b>Ecuación Normal: (Aᵀ A)x = Aᵀ y</b></p>
             <ol>
-                <li><b>Matriz A:</b> Registra los valores X y una columna de 1s (término independiente).</li>
-                <li><b>Matriz de Covarianza (AᵀA):</b> Resume las sumatorias de los datos para el sistema.</li>
-                <li><b>Inversa:</b> Resuelve el sistema para hallar la pendiente y el intercepto.</li>
+                <li><b>Matriz A:</b> Registra los valores X y una columna de 1s.</li>
+                <li><b>Matriz B (Aᵀ):</b> Es la transpuesta necesaria para el ajuste.</li>
+                <li><b>Inversa:</b> Resuelve el sistema para hallar la pendiente e intercepto.</li>
             </ol>
         </div>
     </div>
@@ -112,7 +109,7 @@
         document.getElementById(id).style.display = 'block';
     }
 
-    // Lector de Excel con inicio automático de cálculo
+    // EXCEL: Al subir el archivo, calcula todo automáticamente
     document.getElementById('fileUploader').addEventListener('change', function(e) {
         const file = e.target.files[0];
         if(!file) return;
@@ -128,7 +125,6 @@
                 }
             });
             if(x.length >= 2) solveLinear(x, y);
-            else alert("No se encontraron suficientes datos numéricos.");
         };
         reader.readAsArrayBuffer(file);
     });
